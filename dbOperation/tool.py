@@ -15,6 +15,12 @@ def get_timestamp_from_time_str(time_str):
 
     timestamp = int(time.mktime(st))*1000
     return timestamp
+def get_local_datetime(format_str='%Y-%m-%d %H:%M:%S'):
+    timestamp10 = time.time()
+    tl = time.localtime(timestamp10)
+    format_time = time.strftime(format_str, tl)
+    return format_time
+
 if __name__ == "__main__":
     time_str = '2018-09-01 23:11:01'
     print(get_timestamp_from_time_str(time_str))

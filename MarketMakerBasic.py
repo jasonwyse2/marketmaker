@@ -27,7 +27,7 @@ class WebSocketBasic:
     # host = "wss://api.huobi.pro/ws"
     # CONTRACT_ID = '10'
     last_ask,last_bid = 0., 0.
-    def __init__(self,priceQueue,host,CONTRACT_ID):
+    def __init__(self,host,priceQueue=None,CONTRACT_ID='10'):
         self.priceQueue = priceQueue
         self.host = host
         self.CONTRACT_ID = CONTRACT_ID
@@ -154,16 +154,6 @@ class WebSocketBasic:
         localtime = time.asctime(time.localtime(time.time()))
         print('websocket closed time:', localtime)
         self.start_websocket_connect()
-    def on_open_handler(self,ws):
-        CONTRACT_ID = self.CONTRACT_ID
-        if CONTRACT_ID == '10':
-            ws.send('{"sub": "market.ethbtc.depth.step0","id": "id10"}')
-        if CONTRACT_ID == '11':
-            ws.send('{"sub": "market.bchbtc.depth.step0","id": "id10"}')
-        if CONTRACT_ID == '12':
-            ws.send('{"sub": "market.ltcbtc.depth.step0","id": "id10"}')
-        tradeStr = '{"sub": "market.ethbtc.trade.detail", "id": "id10"}'
-        ws.send(tradeStr)
     def on_open(self,ws):
         # subscribe okcoin.com spot ticker
         CONTRACT_ID = self.CONTRACT_ID
@@ -480,29 +470,4 @@ class MarketMakerBasic:
 if __name__ == "__main__":
     host = "wss://api.huobi.pro/ws"  # if okcoin.cn  change url wss://real.okcoin.cn:10440/websocket/okcoinapi
 
-    # At the beginning,cancel all orders.
-    # latest_price = 0
-    # cancel_all_orders()
-    # print("ALL orders canceled!")
-    #
-    # sell_q = PriorityQueueSell()
-    # buy_q = PriorityQueueBuy()
-    #
-    # orderQueue = Queue(100)
-    # priceQueue = Queue()
-    #
-    # buy_price_order_dict = Manager().dict()
-    # sell_price_order_dict = Manager().dict()
-    #
-    # pwdb = Process(target=writeOrderIdtoDBTask)
-    # orderT = Process(target=orderTask)
-    # pwdb.start()
-    # orderT.start()
-    #
-    # websocket.enableTrace(False)
-    # websocket.setdefaulttimeout(WEBSOCKET_TIMEOUT)
-    #
-    # start_websocket_connect()
-    # pwdb.join()
-    # orderT.join()
 

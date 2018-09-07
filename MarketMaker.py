@@ -11,9 +11,11 @@ import time
 from const import *
 from apscheduler.schedulers.blocking import BlockingScheduler
 import signal
+from MongoOps import Mongo
+from dbOperation.userInfo_conf import UserName_UserId_dict
 class WebSocket(WebSocketBasic):
     def __init__(self, priceQueue, host, CONTRACT_ID, executor_cancel):
-        super(WebSocket, self).__init__(priceQueue,host,CONTRACT_ID)
+        super(WebSocket, self).__init__(host,priceQueue,CONTRACT_ID)
         self.executor_cancel = executor_cancel
 
 
@@ -30,15 +32,14 @@ class WebSocket(WebSocketBasic):
             print(data_dict)
 
         if 'tick' in data_dict:
-            priceQueue = self.priceQueue
             # print(data_dict['tick'])
             bid = (data_dict['tick']['bids'][0][0])
             ask = (data_dict['tick']['asks'][0][0])
             print('new coming ask:%f, bit:%f'%(ask, bid))
             price = (ask, bid)
             if ask != self.last_ask or bid != self.last_bid:
-                print('(ask,bid),priceQueue.qsize():',price, priceQueue.qsize())
-                priceQueue.put(price)
+                print('(ask,bid),priceQueue.qsize():',price, self.priceQueue.qsize())
+                self.priceQueue.put(price)
             self.last_ask = ask
             self.last_bid = bid
 
@@ -87,7 +88,7 @@ class MarketMaker(MarketMakerBasic):
 
     orderQueue = Queue(100)
     priceQueue = Queue()
-    # priceQueue = (0.,0.)
+
     buy_price_order_dict = Manager().dict()
     sell_price_order_dict = Manager().dict()
     executor_cancel = ThreadPoolExecutor(100)
@@ -178,13 +179,14 @@ if __name__ == "__main__":
     listen_host = "wss://api.huobi.pro/ws"  # if okcoin.cn  change url wss://real.okcoin.cn:10440/websocket/okcoinapi
     listenPair_ContractId = '10' #CONTRACT_ID_dict = {'ETH/BTC':'10','BCH/BTC':'11','LTC/BTC':'12'}
     QUANTITY = 0.001 ## ETH/BTC:0.001 BCH/BTC:0.001  LTC/BTC:0.01
-    sql3_dataFile = "/mnt/data/bitasset/bitasset_test.sqlite"
+    sql3_dataFile = "/mnt/data/bitasset/bitasset0906.sqlite"
 
     # test004 @ bitasset.com
-    APIKEY = 'akfb93b97cffef4c0b'
-    SECRETKEY = 'affc4258411e4439bdb6142e0e27fbe1'
-    RESTURL = 'http://tapi.bitasset.cc:7005/'
-    dealApi = BitAssetDealsAPI(RESTURL, APIKEY, SECRETKEY)
+    userName = 'test004'
+    mongo_obj = Mongo()
+    Mongodb_userTable = mongo_obj.get_mongodb_table(mongodb_name='bitasset',mongoTable_name='user')
+    user_obj = Mongo.User(Mongodb_userTable)
+    dealApi = user_obj.get_dealApi(UserName_UserId_dict[userName])
 
     DEPTH = 15
     SPREAD = 0.1
