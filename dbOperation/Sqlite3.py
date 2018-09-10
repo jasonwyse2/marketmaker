@@ -95,6 +95,26 @@ class Sqlite3:
             return content
         else:
             print("sql is empty or None")
+    def fetch_by_userId(self,num,sql=''):
+        '''
+                query all data
+                :param sql:
+                :return:
+                '''
+        if sql == '':
+            sql = 'SELECT * FROM ' + self.tableName +' limit ?'
+        if sql is not None and sql != '':
+            cu = self.getcursor()
+            content = None
+            try:
+                cu.execute(sql,[num,])
+                content = cu.fetchall()
+            except sqlite3.Error as why:
+                print("fetchall data failed:", why.args[0])
+            cu.close()
+            return content
+        else:
+            print("sql is empty or None")
     def fetchall(self, sql=''):
         '''
         query all data
@@ -192,7 +212,7 @@ class Sqlite3:
             self.conn.commit()
         except sqlite3.Error as why:
             print("delete data failed:", why.args[0])
-    def delete_orders_by_id(self,id_list):
+    def delete_orders_by_id(self,userId,id_list):
         sql = 'delete from ' + self.tableName + ' where orderid= ?'
         for i in range(len(id_list)):
             cu = self.getcursor()

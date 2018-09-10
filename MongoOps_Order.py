@@ -121,16 +121,19 @@ class Mongo:
                         # tmp3 = orderInfo_df['status'] == StatusName_StatusCode_dict['cancel']
                         tmp = (orderInfo_df['status'] == full_code or orderInfo_df['status'] == cancel_code)
                         order_full_df = orderInfo_df[orderInfo_df['status'] == full_code]
-                        order_part_df = orderInfo_df[orderInfo_df['status'] == cancel_code]
-                        order_done_df = pd.concat([order_full_df,order_part_df],axis=1)
+
+                        order_partCancel_df =  orderInfo_df[orderInfo_df['status'] == cancel_code &
+                                                     orderInfo_df['filledQuantity']>0&orderInfo_df['canceledQuantity']>0 ]
+                        order_partCancel_df['status'] = StatusName_StatusCode_dict['part-cancel']
+                        order_done_df = pd.concat([order_full_df,order_partCancel_df],axis=1)
                         done_data = order_done_df.values
 
                         if len(done_data) > 0:
                             self.mongodb_orderTable.insert(done_data)
                         break
 
-            orderid_list = done_data['uuid'].values
-            return orderid_list
+            upsert_orderId_list = done_data['uuid'].values
+            return upsert_orderId_list
 
         def find(self,num):
             pass
@@ -200,7 +203,23 @@ class WebSocket(WebSocketBasic):
         for i in range(len(tradeStr_list)):
             ws.send(tradeStr_list[i])
         print('--------- on open complete !----------')
+def run1():
+    sql3_obj.fetch_specific_num( num=10)
+    for i in range(len(userId_list)):
+        userId = userId_list[i]
 
+
+        user_obj = Mongo.User(mongodb_userTable)
+        dealApi = user_obj.get_dealApi(userId)
+        order_obj = Mongo.Order(mongodb_orderTable, dealApi)
+def run_default():
+    for i in range(len(userId_list)):
+        userId = userId_list[i]
+        sql3_obj.fetch_specific_num(userId, num=10)
+
+        user_obj = Mongo.User(mongodb_userTable)
+        dealApi = user_obj.get_dealApi(userId)
+        order_obj = Mongo.Order(mongodb_orderTable, dealApi)
 if __name__ == "__main__":
 
     listen_host = "wss://api.huobi.pro/ws"
@@ -211,23 +230,36 @@ if __name__ == "__main__":
     mongodb_userTable_name = 'user'
     mongodb_exchangeTable_name = 'exchange'
     sql3_datafile= '/mnt/data/bitasset/bitasset0906.sqlite'
-    dbOps_obj = Mongo()
-    mongo_userTable = dbOps_obj.get_mongodb_table(mongodb_name, mongodb_userTable_name)
-    userOps_obj = Mongo.User(mongo_userTable)
+
+    sql3_obj = Sqlite3(dataFile=sql3_datafile)
 
     executor = ThreadPoolExecutor(20)
-    # update balance table for userId (dealApi)
-
     # update exchange, including receiving data and store it in mongo
     price_dict = {}
-    # ----  store data in mongo
+
     sched = BlockingScheduler()
 
     userId_list = [UserName_UserId_dict['test004'],
                    UserName_UserId_dict['test005'],
                    UserName_UserId_dict['test006']
                    ]
-    orderOps_obj_list = []
+    orderId_list_list = []
+    order_obj_list = []
+    mongo_obj = Mongo()
+    mongodb_userTable = mongo_obj.get_mongodb_table(mongodb_name='bitasset', mongoTable_name='user')
+    mongodb_orderTable = mongo_obj.get_mongodb_table(mongodb_name='bitasset', mongoTable_name='order')
+    num_read_from_sql3  = 10
+    for i in range(len(userId_list)):
+        userId = userId_list[i]
+        orderId_list = sql3_obj.fetch_specific_num(userId,num = num_read_from_sql3)
+
+        user_obj = Mongo.User(mongodb_userTable)
+        dealApi = user_obj.get_dealApi(userId)
+        order_obj = Mongo.Order(mongodb_orderTable,dealApi)
+        upsert_orderId_list = order_obj.update(orderId_list)
+        sql3_obj.delete_orders_by_id(userId,upsert_orderId_list)
+
+
 
     # for i in range(len(userId_list)):
     #     userId = userId_list[i]
