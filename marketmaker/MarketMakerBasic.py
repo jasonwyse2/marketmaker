@@ -5,10 +5,22 @@ from concurrent.futures import wait
 import heapq
 import gzip
 import random
-from dbOperation.Sqlite3 import Sqlite3
 from websocket import WebSocketException,WebSocketConnectionClosedException,WebSocketTimeoutException
 
+# sql3 = Sqlite3(dataFile="/mnt/data/bitasset/bitasset.sqlite")
+# sql3 = Sqlite3()
 import os
+
+
+# DEPTH = 15
+# SPREAD = 0.1
+# QUANTITY = 0.001  # ETH/BTC:0.001 BCH/BTC:0.001  LTC/BTC:0.01
+# MAX_RETREAT = 10
+# CONTRACT_ID = '10'  # ETH/BTC:10 BCH/BTC:11  LTC/BTC:12
+# MAX_QUEUE_SIZE = 50
+# SCHEDULE_TIME = 20
+# WEBSOCKET_TIMEOUT = 10
+
 
 class WebSocketBasic:
     # host = "wss://api.huobi.pro/ws"
@@ -259,7 +271,7 @@ class OrderBasic:
     latest_price = 0.
 
     def __init__(self,orderQueue, sell_price_order_dict, buy_price_order_dict,
-                               sql3, CONTRACT_ID, dealApi,executor_cancel,DEPTH,QUANTITY,SPREAD):
+                               sql3, CONTRACT_ID, userId, dealApi,executor_cancel,DEPTH,QUANTITY,SPREAD):
         self.orderQueue = orderQueue
         self.sell_price_order_dict, self.buy_price_order_dict = sell_price_order_dict, buy_price_order_dict
         self.sql3, self.CONTRACT_ID, self.dealApi = sql3, CONTRACT_ID, dealApi
@@ -412,6 +424,21 @@ class OrderBasic:
             self.add_order(self.CONTRACT_ID, '1', bid_price, QUANTITY, '1')
 
 
+    # def cancel_all_orders(self):
+    #     CONTRACT_ID = self.CONTRACT_ID
+    #     dealApi = self.dealApi
+    #     executor_cancel = self.executor_cancel
+    #     futures = []
+    #     all_orders = dealApi.get_all_orders(CONTRACT_ID)
+    #     print('orders going to cancel:',all_orders)
+    #     if 'error' not in all_orders:
+    #         if all_orders['code'] == 0:
+    #             print('all_orders:',all_orders['data'])
+    #             for order in all_orders['data'][::-1]:
+    #                 print('cancel order info',order)
+    #                 futures.append(executor_cancel.submit(dealApi.cancel, order['orderId'], CONTRACT_ID))
+    #     print(wait(futures))
+
 class MarketMakerBasic:
     def __init__(self,CONTRACT_ID,dealApi,executor_cancel):
         self.CONTRACT_ID = CONTRACT_ID
@@ -432,6 +459,11 @@ class MarketMakerBasic:
                     print('cancel order info',order)
                     futures.append(executor_cancel.submit(dealApi.cancel, order['orderId'], CONTRACT_ID))
         print(wait(futures))
+
+
+
+
+
 
 
 if __name__ == "__main__":

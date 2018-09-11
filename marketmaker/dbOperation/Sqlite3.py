@@ -1,12 +1,13 @@
 import sqlite3
+from marketmaker.dbOperation.tool import get_local_datetime
 class Sqlite3:
-    tableName = 'bitasset_orderId'
+    tableName = 'bitasset_order'
     def __init__(self, dataFile=None):
         if dataFile is None:
             self.conn = sqlite3.connect(":memory:")
         else:
             try:
-                self.conn = sqlite3.connect(dataFile)
+                self.conn = sqlite3.connect(dataFile,check_same_thread=False)
             except sqlite3.Error as e:
                 print("连接sqlite数据库失败:", e.args[0])
         self.create_table()
@@ -40,7 +41,10 @@ class Sqlite3:
         '''
         tableName = self.tableName
         sql = 'create table if not exists '+tableName+' (' \
-                                 'orderid CHAR(100))'
+                              'userId Int,' \
+                              'orderId CHAR(100),' \
+                                                      'datetime CHAR(50)' \
+                                                      ')'
         if sql is not None and sql != '':
             cu = self.getcursor()
             try:
@@ -49,25 +53,26 @@ class Sqlite3:
                 print("create table failed:", why.args[0])
                 return
             self.conn.commit()
-            # print("create table successful!")
+            print("create table successful!")
             cu.close()
         else:
             print("sql is empty or None")
 
-    def insert(self, data):
+    def insert(self, userId,orderId_list):
         '''
         insert data to the table
         :param sql:
         :param data:
         :return:
         '''
-        sql = 'INSERT INTO ' + self.tableName + '(orderid) values (?)'
+        datetime = get_local_datetime()
+        sql = 'INSERT INTO ' + self.tableName + '(userId,orderId,datetime) values (?,?,?)'
         if sql is not None and sql != '':
-            if data is not None:
+            if orderId_list is not None:
                 cu = self.getcursor()
                 try:
-                    for d in data:
-                        cu.execute(sql, [d])
+                    for orderId in orderId_list:
+                        cu.execute(sql, [userId,orderId,datetime]) #if 'd' is an element, you should use [d]
                         self.conn.commit()
                 except sqlite3.Error as why:
                     print("insert data failed:", why.args[0])
@@ -75,19 +80,19 @@ class Sqlite3:
         else:
             print("sql is empty or None")
 
-    def fetch_specific_num(self,num,sql=''):
+    def fetch_specific_num(self,userId, num,sql=''):
         '''
                 query all data
                 :param sql:
                 :return:
                 '''
         if sql == '':
-            sql = 'SELECT * FROM ' + self.tableName +' limit ?'
+            sql = 'SELECT orderId FROM ' + self.tableName +' where userId=? order by datetime limit ?'
         if sql is not None and sql != '':
             cu = self.getcursor()
             content = None
             try:
-                cu.execute(sql,[num,])
+                cu.execute(sql,[userId,num])
                 content = cu.fetchall()
             except sqlite3.Error as why:
                 print("fetchall data failed:", why.args[0])
@@ -95,19 +100,19 @@ class Sqlite3:
             return content
         else:
             print("sql is empty or None")
-    def fetch_by_userId(self,num,sql=''):
+    def fetch_by_userId(self,userId, num,sql=''):
         '''
                 query all data
                 :param sql:
                 :return:
                 '''
         if sql == '':
-            sql = 'SELECT * FROM ' + self.tableName +' limit ?'
+            sql = 'SELECT * FROM ' + self.tableName +' where userId=? order by orderId limit ?'
         if sql is not None and sql != '':
             cu = self.getcursor()
             content = None
             try:
-                cu.execute(sql,[num,])
+                cu.execute(sql,[userId,num])
                 content = cu.fetchall()
             except sqlite3.Error as why:
                 print("fetchall data failed:", why.args[0])
@@ -122,7 +127,7 @@ class Sqlite3:
         :return:
         '''
         if sql=='':
-            sql = 'SELECT * FROM ' + self.tableName
+            sql = 'SELECT * FROM ' + self.tableName+ ' order by orderId'
         if sql is not None and sql != '':
             cu = self.getcursor()
             content = None
@@ -134,28 +139,6 @@ class Sqlite3:
                 print("fetchall data failed:", why.args[0])
             cu.close()
             return content
-        else:
-            print("sql is empty or None")
-
-    def fetchone(self, sql, data):
-        '''
-        query one data
-        :param sql:
-        :param data:
-        :return:
-        '''
-        if sql is not None and sql != '':
-            if data is not None:
-                cu = self.getcursor()
-                try:
-                    d = (data,)
-                    cu.execute(sql, d)
-                    content = cu.fetchall()
-
-                except sqlite3.Error as why:
-                    print("fetch the data failed:", why.args[0])
-                    return
-                cu.close()
         else:
             print("sql is empty or None")
 
@@ -204,20 +187,13 @@ class Sqlite3:
             cu.close()
         else:
             print ("sql is empty or None")
-    def delete_orders_before_timestamp(self, timestamp):
-        sql = 'delete from '+self.tableName+' where orderid<= ?'
-        cu = self.getcursor()
-        try:
-            cu.execute(sql,[timestamp,])
-            self.conn.commit()
-        except sqlite3.Error as why:
-            print("delete data failed:", why.args[0])
-    def delete_orders_by_id(self,userId,id_list):
-        sql = 'delete from ' + self.tableName + ' where orderid= ?'
-        for i in range(len(id_list)):
+
+    def delete_by_userId_orderIdlist(self, userId, orderId_list):
+        sql = 'delete from ' + self.tableName + ' where userId=? and orderId= ?'
+        for i in range(len(orderId_list)):
             cu = self.getcursor()
             try:
-                cu.execute(sql, [id_list[i], ])
+                cu.execute(sql, [userId, orderId_list[i]])
                 self.conn.commit()
             except sqlite3.Error as why:
                 print("delete data failed:", why.args[0])
@@ -228,13 +204,23 @@ class Sqlite3:
         cu.execute(sql)
         self.conn.commit()
         cu.close()
+
     def __del__(self):
         self.conn.close()
 
 if __name__ == "__main__":
     # sql3 = Sqlite3(dataFile='/mnt/data/bitasset/bitasset.sqlite')
-    sql3 = Sqlite3(dataFile='/mnt/data/bitasset/bitasset.sqlite')
-    # sql3.insert(data)
+    sql3 = Sqlite3(dataFile='/mnt/data/bitasset/bitasset0906.sqlite')
+    # userId = 123
+    # orderId_list = ['33444','2234']
+    # datetime = '3232-23-23 12:34:23'
+    # sql3.insert(userId,orderId_list,datetime)
+
     res = sql3.fetchall()
-    print(res)
+    # res = sql3.fetch_specific_num(userId=666849,num=10)
+    print('fetch number',len(res))
+    print('before delete',res)
+    # sql3.delete_orders_by_userIdOrderId(userId=userId, orderId_list=['33444'])
+    # res = sql3.fetchall()
+    # print('after delete',res)
 

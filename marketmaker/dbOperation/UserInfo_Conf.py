@@ -30,7 +30,7 @@ StatusName_StatusCode_dict ={
 # 2:full ,3:cancel
     'full':2,'cancel':3,'no':0,'part':1,'part-cancel':4
 }
-StatusName_StatusCode_dict ={
+StatusCode_StatusName_dict ={
 # 2:full ,3:cancel
     2:'full',3:'cancel',0:'no',1:'part',4:'part-cancel'
 }

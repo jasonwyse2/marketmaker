@@ -1,18 +1,13 @@
-from BitAssetAPI import BitAssetMarketAPI,BitAssetDealsAPI
+from marketmaker.BitAssetAPI import BitAssetDealsAPI
+
 import json
-import time
-import hashlib
-from dbOperation.Sqlite3 import *
-from dbOperation.tool import *
+from marketmaker.dbOperation.tool import *
 from pymongo import MongoClient
-from datetime import datetime
-from dateutil.relativedelta import relativedelta
 import pandas as pd
-from MarketMakerBasic import WebSocketBasic
-from concurrent.futures import ThreadPoolExecutor, wait, as_completed
+from marketmaker.MarketMakerBasic import WebSocketBasic
+from concurrent.futures import ThreadPoolExecutor
 import gzip
-from dbOperation.userInfo_conf import UserInfo_dict_list, UserName_UserId_dict, UserId_UserName_dict,StatusName_StatusCode_dict
-import numpy as np
+from marketmaker.dbOperation.UserInfo_Conf import UserName_UserId_dict, UserId_UserName_dict,StatusName_StatusCode_dict
 from apscheduler.schedulers.blocking import BlockingScheduler
 # data = 'This a md5 test!'
 # hash_md5 = hashlib.md5(data)
@@ -35,13 +30,13 @@ class Mongo:
         def update(self, userId, APIKEY, APISECRET):
             query = {'userId': userId}
             values = {'$set': {'APIKEY': APIKEY, 'SECRETKEY': APISECRET}}
-            self.mongodb_userTable.update(query, values)
+            self.mongodb_userTable.insert(query, values)
             print('update user info (userName:%s) successfully' % (userId))
 
         def insert(self, userId, userName, APIKEY, APISECRET,RESTURL):
             query = {'userId': userId}
             values = {'userId': userId, 'userName': userName, 'APIKEY': APIKEY, 'SECRETKEY': APISECRET,'RESTURL':RESTURL}
-            self.mongodb_userTable.update(query, values, True, False)
+            self.mongodb_userTable.insert(query, values, True, False)
             # self.mongo_userTable.update_one(query,values)
             print('add user (userName:%s) successfully into mongodb_user' % (userName))
         def find_one(self, userId):
@@ -85,7 +80,7 @@ class Mongo:
                 if(float(lastBTCValue)!=float(newBTCValue)):
                     values = {'userId':userId,'datetime': format_time, 'account': balance_info['data'],'change':1}
                 # doc = self.mongodb_balanceTable.find_one(query)
-                self.mongodb_balanceTable.update(query, values, True, False)
+                self.mongodb_balanceTable.insert(query, values, True, False)
                 print('insert balance successfully into mongodb for user:%s ' % UserId_UserName_dict[userId])
             else:
                 print('get balance from remote server go wrong:',balance_info)
@@ -103,7 +98,7 @@ class Mongo:
         def __init__(self,mongodb_orderTable, dealApi):
             self.mongodb_orderTable = mongodb_orderTable
             self.dealApi = dealApi
-        def update(self,orderId_list):
+        def insert(self, orderId_list):
             if(len(orderId_list))==0:
                 return
             else:
@@ -117,20 +112,28 @@ class Mongo:
                         # select the done order out, 2:full ,3:cancel
                         full_code = StatusName_StatusCode_dict['full']
                         cancel_code = StatusName_StatusCode_dict['cancel']
-                        # tmp2 = orderInfo_df['status'] == StatusName_StatusCode_dict['full']
-                        # tmp3 = orderInfo_df['status'] == StatusName_StatusCode_dict['cancel']
-                        tmp = (orderInfo_df['status'] == full_code or orderInfo_df['status'] == cancel_code)
                         order_full_df = orderInfo_df[orderInfo_df['status'] == full_code]
-                        order_part_df = orderInfo_df[orderInfo_df['status'] == cancel_code]
-                        order_done_df = pd.concat([order_full_df,order_part_df],axis=1)
-                        done_data = order_done_df.values
 
-                        if len(done_data) > 0:
-                            self.mongodb_orderTable.insert(done_data)
+                        order_cancel_df =  orderInfo_df[(orderInfo_df['status'] == cancel_code)]
+                        order_partCancel_df = order_cancel_df.loc[(orderInfo_df['filledQuantity'].values>0) & (orderInfo_df['canceledQuantity'].values>0)]
+                        order_partCancel_df['status'] = StatusName_StatusCode_dict['part-cancel']
+
+
+                        order_cancel_df = order_cancel_df.copy()
+                        order_cancel_df.loc[(orderInfo_df['filledQuantity'] > 0) & (orderInfo_df['canceledQuantity'] > 0),'status']\
+                            =StatusName_StatusCode_dict['part-cancel']
+
+
+                        order_done_df = pd.concat([order_full_df,order_cancel_df])
+                        order_done_df.reset_index(inplace=True)
+                        done_order_list = order_done_df.to_dict(orient='records')
+
+                        if len(done_order_list) > 0:
+                            self.mongodb_orderTable.insert(done_order_list)
                         break
 
-            orderid_list = done_data['uuid'].values
-            return orderid_list
+            insert_orderId_list = order_done_df['uuid'].values.tolist()
+            return insert_orderId_list
 
         def find(self,num):
             pass
@@ -147,7 +150,7 @@ class Mongo:
             exchangeRate_dict = {'exchangePrice':price_dict}
             values.update(exchangeRate_dict)
             print(' "price_dict" going to write in mongodb:',values)
-            self.mongodb_exchangeTable.update(query, values, True, False)
+            self.mongodb_exchangeTable.insert(query, values, True, False)
         def find(self,record_num,exchangeName='huobi'):
             query = {'exchangeName':exchangeName}
             # self.mongodb_exchangeTable.update(query, values, True, False)

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # To access the REST API of BitAsset
-from HttpsMD5Util import HttpsRequest
+from marketmaker.HttpsMD5Util import HttpsRequest
 import time
 
 class BitAssetBase(object):

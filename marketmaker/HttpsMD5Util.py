@@ -38,7 +38,7 @@ class HttpsRequest(object):
             raise TypeError('{0} should has attributes of "items"'.format(params))
         #return hashlib.md5(data.encode('utf8')).hexdigest().upper()
         sha = sha1()
-        sha.update(bytes(secret_key,'utf8'))
+        sha.update(bytes(secret_key, 'utf8'))
         secret = sha.hexdigest()
         # print("secret:"+secret)
         signature = hmac.new(bytes(secret, 'utf8'), bytes(data, 'utf8'), digestmod=hashlib.sha256).hexdigest()

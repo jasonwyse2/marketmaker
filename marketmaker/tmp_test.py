@@ -1,6 +1,6 @@
-from BitAssetAPI import  BitAssetDealsAPI
+from marketmaker.BitAssetAPI import  BitAssetDealsAPI
 from concurrent.futures import ThreadPoolExecutor
-from dbOperation.Sqlite3 import Sqlite3
+from marketmaker.dbOperation.Sqlite3 import Sqlite3
 import json
 if __name__ == "__main__":
     listen_host = "wss://api.huobi.pro/ws"  # if okcoin.cn  change url wss://real.okcoin.cn:10440/websocket/okcoinapi

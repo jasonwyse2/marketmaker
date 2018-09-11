@@ -1,18 +1,20 @@
-from MarketMakerBasic import MarketMakerBasic,WebSocketBasic,OrderBasic,PriorityQueueBuy,PriorityQueueSell
-from BitAssetAPI import  BitAssetDealsAPI
+from marketmaker.MarketMakerBasic import MarketMakerBasic,WebSocketBasic,OrderBasic,PriorityQueueBuy,PriorityQueueSell
 from multiprocessing import Process, Queue, Manager
 from concurrent.futures import ThreadPoolExecutor, wait
-from dbOperation.Sqlite3 import Sqlite3
+from marketmaker.dbOperation.Sqlite3 import Sqlite3
 import gzip,json
 from datetime import datetime
 import websocket
 import os
 import time
-from const import *
+from marketmaker.const import *
 from apscheduler.schedulers.blocking import BlockingScheduler
 import signal
-from MongoOps import Mongo
-from dbOperation.userInfo_conf import UserName_UserId_dict
+from marketmaker.MongoOps import Mongo
+from marketmaker.dbOperation.UserInfo_Conf import UserName_UserId_dict
+from marketmaker.dbOperation import tool
+
+
 class WebSocket(WebSocketBasic):
     def __init__(self, priceQueue, host, CONTRACT_ID, executor_cancel):
         super(WebSocket, self).__init__(host,priceQueue,CONTRACT_ID)
@@ -58,9 +60,9 @@ class WebSocket(WebSocketBasic):
 
 class Order(OrderBasic):
     def __init__(self,orderQueue, sell_price_order_dict, buy_price_order_dict,
-         sql3, CONTRACT_ID, dealApi, executor_cancel, DEPTH, QUANTITY, SPREAD):
+         sql3, CONTRACT_ID, userId, dealApi, executor_cancel, DEPTH, QUANTITY, SPREAD):
         super(Order, self).__init__(orderQueue, sell_price_order_dict, buy_price_order_dict,
-         sql3, CONTRACT_ID, dealApi, executor_cancel, DEPTH, QUANTITY, SPREAD)
+         sql3, CONTRACT_ID, userId, dealApi, executor_cancel, DEPTH, QUANTITY, SPREAD)
 
     def self_trade(self,bid, ask, quantity):
         ts = time.time() * 1000
@@ -93,13 +95,14 @@ class MarketMaker(MarketMakerBasic):
     sell_price_order_dict = Manager().dict()
     executor_cancel = ThreadPoolExecutor(100)
 
-    def __init__(self,host,CONTRACT_ID,sql3_dataFile, dealApi,DEPTH,QUANTITY,SPREAD):
+    def __init__(self,host,CONTRACT_ID, userId,sql3_dataFile, dealApi,DEPTH,QUANTITY,SPREAD):
         executor_cancel = self.executor_cancel
         self.sql3 = Sqlite3(dataFile=sql3_dataFile)
+        self.userId = userId
         super(MarketMaker, self).__init__(CONTRACT_ID,dealApi,executor_cancel)
 
         self.order_obj = Order(self.orderQueue, self.sell_price_order_dict, self.buy_price_order_dict,
-                                    self.sql3, CONTRACT_ID, dealApi, executor_cancel,DEPTH,QUANTITY,SPREAD)
+                                    self.sql3, CONTRACT_ID, userId,dealApi, executor_cancel,DEPTH,QUANTITY,SPREAD)
 
         self.cancel_all_orders()
 
@@ -111,10 +114,11 @@ class MarketMaker(MarketMakerBasic):
 
     def writeOrderIdtoDBTask(self):
         orderQueue = self.orderQueue
+        local_datetime = tool.get_local_datetime()
         while True:
             orderList = []
             orderList.append(orderQueue.get())
-            self.sql3.insert(orderList)
+            self.sql3.insert(self.userId,orderList)
     def orderTask(self):
         priceQueue = self.priceQueue
         order_obj = self.order_obj
@@ -183,6 +187,7 @@ if __name__ == "__main__":
 
     # test004 @ bitasset.com
     userName = 'test004'
+    userId = UserName_UserId_dict[userName]
     mongo_obj = Mongo()
     Mongodb_userTable = mongo_obj.get_mongodb_table(mongodb_name='bitasset',mongoTable_name='user')
     user_obj = Mongo.User(Mongodb_userTable)
@@ -191,7 +196,7 @@ if __name__ == "__main__":
     DEPTH = 15
     SPREAD = 0.1
 
-    mkt_mkr = MarketMaker(listen_host, listenPair_ContractId, sql3_dataFile, dealApi, DEPTH,QUANTITY,SPREAD)
+    mkt_mkr = MarketMaker(listen_host, listenPair_ContractId, userId, sql3_dataFile, dealApi, DEPTH,QUANTITY,SPREAD)
     mkt_mkr.run()
 
 
