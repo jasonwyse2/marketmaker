@@ -99,6 +99,7 @@ class MarketMaker(MarketMakerBasic):
         executor_cancel = self.executor_cancel
         self.sql3 = Sqlite3(dataFile=sql3_dataFile)
         self.userId = userId
+        self.QUANTITY = QUANTITY
         super(MarketMaker, self).__init__(CONTRACT_ID,dealApi,executor_cancel)
 
         self.order_obj = Order(self.orderQueue, self.sell_price_order_dict, self.buy_price_order_dict,
@@ -133,7 +134,7 @@ class MarketMaker(MarketMakerBasic):
             print('Before Cancel!', price)
             order_obj.cancel_old_orders(ask, bid)
             print('After Cancel!', price)
-            futures.append(executor.submit(order_obj.self_trade(bid, ask, QUANTITY)))
+            futures.append(executor.submit(order_obj.self_trade(bid, ask, self.QUANTITY)))
             futures.append(executor.submit(order_obj.adjust_sell_orders, ask))
             futures.append(executor.submit(order_obj.adjust_buy_orders, bid))
             # adjust buy orders

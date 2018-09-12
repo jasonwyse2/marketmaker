@@ -1,3 +1,9 @@
+import sys
+import os
+curPath = os.path.abspath(os.path.dirname(__file__))
+rootPath = os.path.split(curPath)[0]
+sys.path.append(rootPath)
+
 from marketmaker.BitAssetAPI import BitAssetDealsAPI
 
 import json
@@ -9,13 +15,11 @@ from concurrent.futures import ThreadPoolExecutor
 import gzip
 from marketmaker.dbOperation.UserInfo_Conf import UserName_UserId_dict, UserId_UserName_dict,StatusName_StatusCode_dict
 from apscheduler.schedulers.blocking import BlockingScheduler
-# data = 'This a md5 test!'
-# hash_md5 = hashlib.md5(data)
-# hash_md5.hexdigest()
+
+
 class Mongo:
     conn = MongoClient("mongodb://localhost:27017/")
     def __init__(self, ):
-        # self.sql3 = Sqlite3(dataFile=sql3_datafile)
         pass
 
     def get_mongodb(self,mongodb_name):
@@ -30,13 +34,13 @@ class Mongo:
         def update(self, userId, APIKEY, APISECRET):
             query = {'userId': userId}
             values = {'$set': {'APIKEY': APIKEY, 'SECRETKEY': APISECRET}}
-            self.mongodb_userTable.insert(query, values)
+            self.mongodb_userTable.update(query, values)
             print('update user info (userName:%s) successfully' % (userId))
 
         def insert(self, userId, userName, APIKEY, APISECRET,RESTURL):
             query = {'userId': userId}
             values = {'userId': userId, 'userName': userName, 'APIKEY': APIKEY, 'SECRETKEY': APISECRET,'RESTURL':RESTURL}
-            self.mongodb_userTable.insert(query, values, True, False)
+            self.mongodb_userTable.update(query, values, True, False)
             # self.mongo_userTable.update_one(query,values)
             print('add user (userName:%s) successfully into mongodb_user' % (userName))
         def find_one(self, userId):
@@ -66,21 +70,27 @@ class Mongo:
                 format_time = get_local_datetime(format_str="%Y-%m-%d %H:%M:%S")
                 format_time_hour = format_time[0:13] #precise to hour
                 query = {'userId': userId,'datetime':{'$regex':format_time_hour}}
-                values = {'userId': userId, 'datetime': format_time, 'account': balance_info['data']}
-
-                doc_lastRecord = self.find(userId,record_num=1)
-                last_account = list(doc_lastRecord)[0]['account']
-                df_lastBTCBalance = pd.DataFrame(last_account)
-                lastBTCValue = df_lastBTCBalance.loc[df_lastBTCBalance['currency']=='BTC','balance'].values[0]
+                values = {'userId': userId, 'datetime': format_time, 'account': balance_info['data'],'change':0}
 
                 new_account = balance_info['data']
                 df_newBTCBalance = pd.DataFrame(new_account)
-                newBTCValue = df_newBTCBalance.loc[df_newBTCBalance['currency']=='BTC','balance'].values[0]
+                newBTCValue = df_newBTCBalance.loc[df_newBTCBalance['currency'] == 'BTC', 'balance'].values[0]
 
-                if(float(lastBTCValue)!=float(newBTCValue)):
-                    values = {'userId':userId,'datetime': format_time, 'account': balance_info['data'],'change':1}
-                # doc = self.mongodb_balanceTable.find_one(query)
-                self.mongodb_balanceTable.insert(query, values, True, False)
+
+                doc_lastRecord = self.find(userId,record_num=1)
+                last_account = ''
+                for doc in doc_lastRecord:
+                    last_account = doc['account']
+                    break
+                # last_account = list(doc_lastRecord)[0]['account']
+                if last_account!='':
+                    df_lastBTCBalance = pd.DataFrame(last_account)
+                    lastBTCValue = df_lastBTCBalance.loc[df_lastBTCBalance['currency']=='BTC','balance'].values[0]
+
+                    if(float(lastBTCValue)!=float(newBTCValue)):
+                        values = {'userId':userId,'datetime': format_time, 'account': balance_info['data'],'change':1}
+
+                self.mongodb_balanceTable.update(query, values, True, False)
                 print('insert balance successfully into mongodb for user:%s ' % UserId_UserName_dict[userId])
             else:
                 print('get balance from remote server go wrong:',balance_info)
@@ -135,6 +145,24 @@ class Mongo:
             insert_orderId_list = order_done_df['uuid'].values.tolist()
             return insert_orderId_list
 
+        def saveOrder(self,mongo_obj,sql3_obj,userId_list):
+
+            mongodb_userTable = mongo_obj.get_mongodb_table(mongodb_name='bitasset', mongoTable_name='user')
+            mongodb_orderTable = mongo_obj.get_mongodb_table(mongodb_name='bitasset', mongoTable_name='order')
+            num_read_from_sql3 = 300
+            for i in range(len(userId_list)):
+                userId = userId_list[i]
+                orderId_list0 = sql3_obj.fetch_specific_num(userId, num=num_read_from_sql3)
+                if orderId_list0:
+                    orderId_list = pd.DataFrame(orderId_list0).iloc[:, 0].values.tolist()
+                    user_obj = Mongo.User(mongodb_userTable)
+                    dealApi = user_obj.get_dealApi(userId)
+                    order_obj = Mongo.Order(mongodb_orderTable, dealApi)
+                    insert_orderId_list = order_obj.insert(orderId_list)
+                    print('insert into mongodb items', len(insert_orderId_list))
+                    sql3_obj.delete_by_userId_orderIdlist(userId, insert_orderId_list)
+            print('------------- save order is over. --------------')
+
         def find(self,num):
             pass
     class Exchange():
@@ -150,25 +178,13 @@ class Mongo:
             exchangeRate_dict = {'exchangePrice':price_dict}
             values.update(exchangeRate_dict)
             print(' "price_dict" going to write in mongodb:',values)
-            self.mongodb_exchangeTable.insert(query, values, True, False)
+            self.mongodb_exchangeTable.update(query, values, True, False)
         def find(self,record_num,exchangeName='huobi'):
             query = {'exchangeName':exchangeName}
             # self.mongodb_exchangeTable.update(query, values, True, False)
             docs = self.mongodb_exchangeTable.find(query).sort('_id', -1).limit(record_num)
             return docs
 
-
-
-    # def get_contractId_by_symbol(self,symbol):
-    #     symbol_dict =self.marketApi.symbols()
-    #     data_list = symbol_dict['data']
-    #     contractId = ''
-    #     for it in data_list:
-    #         if it['name']==symbol:
-    #             contractId = it['id']
-    #             break
-    #     # print(data_list)
-    #     return contractId
 
 class WebSocket(WebSocketBasic):
     def __init__(self,host,price_dict):
@@ -237,26 +253,22 @@ if __name__ == "__main__":
     exchange_obj = Mongo.Exchange(listen_exchangeName,mongodb_exchangeTable)
 
     mongodb_balanceTable = dbOps_obj.get_mongodb_table(mongodb_name, mongodb_balanceTable_name)
-    # userId = UserName_UserId_dict['test004']
-    # dealApi = userOps_obj.get_dealApi(userId)
-    # balanceOps_obj = Mongo.Balance(mongodb_balanceTable, dealApi)
 
-    # userId = UserName_UserId_dict['maker_lj1']
-    # dealApi = userOps_obj.get_dealApi(userId)
-    # balanceOps_obj = Mongo.Balance(mongodb_balanceTable, dealApi)
-    # balanceOps_obj.update(userId)
 
-    userId_list = [UserName_UserId_dict['maker_lj1'],UserName_UserId_dict['maker_lj2'],UserName_UserId_dict['maker_lj3']]
+    userId_list = [UserName_UserId_dict['maker_lj1'],
+                   UserName_UserId_dict['maker_lj2'],
+                   UserName_UserId_dict['maker_lj3']
+                   ]
     balanceOps_obj_list = []
     for i in range(len(userId_list)):
         userId = userId_list[i]
         dealApi = user_obj.get_dealApi(userId)
         balanceOps_obj = Mongo.Balance(mongodb_balanceTable, dealApi)
         balanceOps_obj_list.append(balanceOps_obj)
-    # execute updating program on 'balance', 'exchange' in every seconds
+    # 'exchange rate' update in every seconds
     sched.add_job(exchange_obj.update, 'interval', seconds=5, start_date='2018-08-13 14:00:00',
                   end_date='2122-12-13 14:00:10',args=[price_dict])
-
+    # update 'balance' for each userId account,
     for i in range(len(userId_list)):
         sched.add_job(balanceOps_obj_list[i].update, 'interval', seconds=5, start_date='2018-08-13 14:00:00',
                   end_date='2122-12-13 14:00:10', args=[userId_list[i]])
