@@ -34,3 +34,9 @@ StatusCode_StatusName_dict ={
 # 2:full ,3:cancel
     2:'full',3:'cancel',0:'no',1:'part',4:'part-cancel'
 }
+UserName_ScreenName_dict = {
+    'maker_lj1':'ETHBTC_MM',
+    'maker_lj2':'BCHBTC_MM',
+    'maker_lj3':'LTCBTC_MM',
+    'test004':'test004','test005':'test005','test006':'test006',
+}

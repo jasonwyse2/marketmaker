@@ -124,7 +124,7 @@ class Mongo:
                 balancdInfo_old_dict = doc
                 break
             account_old_list = balancdInfo_old_dict['account']
-            account_old_datetime = balancdInfo_new_dict['datetime']
+            account_old_datetime = balancdInfo_old_dict['datetime']
             balance_BTC_old = 0.
             for i in range(len(account_old_list)):
                 account_old = account_old_list[i]

@@ -44,11 +44,12 @@ WEBSOCKET_TIMEOUT = 10
 ###APIKEY = 'ak7aae03c570844966'
 ###SECRETKEY = 'f8890fee0b3a451da1f58dcd02cabcc3'
 # username:maker_lj1@bitasset.com
+#test004:   'akfb93b97cffef4c0b','SECRETKEY': 'affc4258411e4439bdb6142e0e27fbe1'
 # test005: 'ak4703b894b34d4873','SECRETKEY': 'c8116d48f0c941efae4dd19b4bd95f20'
 # test006: 'aka7d579788d384c60','SECRETKEY': '8f7aae7545574dc1846c0a10d76dc0bc'
-APIKEY = 'ak4703b894b34d4873'
-SECRETKEY = 'c8116d48f0c941efae4dd19b4bd95f20'
-USERID=UserName_UserId_dict['test005']
+APIKEY = 'akfb93b97cffef4c0b'
+SECRETKEY = 'affc4258411e4439bdb6142e0e27fbe1'
+USERID=UserName_UserId_dict['test004']
 ###username:1381110955
 ###APIKEY = 'ak7b68c889d04045e5'
 ###SECRETKEY = 'b44f7c6a6ef44d9c84d7b4da2e02c8a1'

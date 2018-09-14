@@ -46,9 +46,9 @@ WEBSOCKET_TIMEOUT = 10
 # username:maker_lj1@bitasset.com
 # test005: 'ak4703b894b34d4873','SECRETKEY': 'c8116d48f0c941efae4dd19b4bd95f20'
 # test006: 'aka7d579788d384c60','SECRETKEY': '8f7aae7545574dc1846c0a10d76dc0bc'
-APIKEY = 'ak4703b894b34d4873'
-SECRETKEY = 'c8116d48f0c941efae4dd19b4bd95f20'
-USERID=UserName_UserId_dict['test005']
+APIKEY = 'aka7d579788d384c60'
+SECRETKEY = '8f7aae7545574dc1846c0a10d76dc0bc'
+USERID=UserName_UserId_dict['test006']
 ###username:1381110955
 ###APIKEY = 'ak7b68c889d04045e5'
 ###SECRETKEY = 'b44f7c6a6ef44d9c84d7b4da2e02c8a1'

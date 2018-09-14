@@ -9,6 +9,7 @@ from marketmaker.dbOperation.UserInfo_Conf import UserName_UserId_dict, UserId_U
 from concurrent.futures import ThreadPoolExecutor, wait, as_completed
 from apscheduler.schedulers.blocking import BlockingScheduler
 from marketmaker.MongoOps import Mongo
+from marketmaker.dbOperation.tool import get_local_datetime
 from marketmaker.order_helper import saveOrder
 import time
 from email.header import Header
@@ -17,7 +18,7 @@ import smtplib
 
 receiver_list = ['zhangyaogong@lingjuninvest.com',
                  'yupengzhi@lingjuninvest.com',
-                 # 'lizhe@lingjuninvest.com'
+                 'lizhe@lingjuninvest.com'
                  ]
 
 def email(subject, receiver, content):
@@ -40,43 +41,17 @@ def email(subject, receiver, content):
     except:
         print("邮件服务器异常，发送失败")
 
-def check_balance(balance_obj):
-    minutes_ago = 60*1
-    threthold = 0.
-    balance_BTC_new_str, balance_BTC_old_str, account_new_datetime, account_old_datetime = balance_obj.diff(minutes_ago)
-    balance_BTC_new,balance_BTC_old = float(balance_BTC_new_str),float(balance_BTC_old_str)
-    change = 0.
-    if balance_BTC_new>0 and balance_BTC_old>0:
-        change_pct = float(balance_BTC_new)/float(balance_BTC_old)-1
-        if abs(change_pct)>threthold:
-            change = round(change_pct*100,2)
-            subject = 'Test Trade, BTC balance changes %s percent for user:%s'%(str(change),balance_obj.userId)
-            content = 'old datetime: %s'%account_old_datetime+\
-                      '; old balance %s'%balance_BTC_old_str+'\n'+ \
-                      'new datetime: %s' % account_new_datetime + \
-                      '; new balance %s' % balance_BTC_new_str + '\n'
-
-            # email(subject, receiver_list, content)
-            print(subject)
-            print(content)
-    else:
-        print('something go wrong for user:',balance_obj.userId,' in check_balance()')
-        print('balance_BTC_new:',balance_BTC_new,'balance_BTC_old:',balance_BTC_old)
-    print('checking balance is over for user:',balance_obj.userId,'the BTC balance changes:%s percent'%str(change))
-
-userId_list = [UserName_UserId_dict['test004'],#maker_lj1
-                   UserName_UserId_dict['test005'],
-                   UserName_UserId_dict['test006']
+userId_list = [UserName_UserId_dict['maker_lj1'],#maker_lj1
+                   UserName_UserId_dict['maker_lj2'],
+                   UserName_UserId_dict['maker_lj3']
                    ]
 balance_BTC_new_list = [0.]*len(userId_list)
 balance_BTC_old_list = [0.]*len(userId_list)
 account_old_datetime_list = ['']*len(userId_list)
 account_new_datetime_list = ['']*len(userId_list)
 
-def check_balance2(balance_obj_list,idx):
+def balance_change_alarm(balance_obj_list, idx):
     balance_obj = balance_obj_list[idx]
-    # global balance_BTC_new,balance_BTC_old
-    # global account_new_datetime,account_old_datetime
     docs = balance_obj.find(record_num=1)
     for doc in docs:
         balancdInfo_new_dict = doc
@@ -89,9 +64,10 @@ def check_balance2(balance_obj_list,idx):
             new_balance_BTC_str = account_new['balance']
             balance_BTC_new_list[idx] = float(new_balance_BTC_str)
             break
+    userName = UserId_UserName_dict[balance_obj.userId]
     if balance_BTC_old_list[idx] != 0. and balance_BTC_new_list[idx] != balance_BTC_old_list[idx]:
-        userName = UserId_UserName_dict[balance_obj.userId]
-        subject = 'Test Trade, BTC balance changes for user:%s' % (userName)
+
+        subject = 'Real Trade, BTC balance changes for user:%s' % (userName)
         content = 'old datetime: %s' % account_old_datetime_list[idx] + \
                   '; old balance: %f' % balance_BTC_old_list[idx] + '\n' + \
                   'new datetime: %s' % account_new_datetime_list[idx] + \
@@ -99,17 +75,13 @@ def check_balance2(balance_obj_list,idx):
         email(subject, receiver_list, content)
         print(subject)
         print(content)
+    else:
+        local_datetime = get_local_datetime()
+        print('no trade for user:',userName, local_datetime)
 
     balance_BTC_old_list[idx] = balance_BTC_new_list[idx]
     account_old_datetime_list[idx] = account_new_datetime_list[idx]
 
-
-def check_balance_concurrence(balance_obj_list):
-    futures = []
-    for i in range(len(balance_obj_list)):
-        balance_obj = balance_obj_list[i]
-        futures.append(executor.submit(check_balance2,balance_obj))
-    wait(futures)
 
 
 if __name__ == "__main__":
@@ -136,14 +108,7 @@ if __name__ == "__main__":
             dealApi = user_obj.get_dealApi(userId)
             balance_obj = Mongo.Balance(mongodb_balanceTable, userId, dealApi)
             balance_obj_list.append(balance_obj)
-            check_balance2(balance_obj_list,i)
-        time.sleep(10)
-
-
-    # sched = BlockingScheduler()  #
-    # # ----------------- balance alarmer --------------------------
-    # sched.add_job(check_balance_concurrence, 'interval', seconds=60*2, start_date='2018-08-13 14:00:50',
-    #               end_date='2118-12-13 14:00:10', args=[balance_obj_list])
-    # # ----------------- balance alarmer  --------------------------
-    # executor.submit(sched.start)
+            balance_change_alarm(balance_obj_list, i)
+        print()
+        time.sleep(5)
 
