@@ -117,10 +117,9 @@ class MarketMaker(MarketMakerBasic):
         orderQueue = self.orderQueue
         local_datetime = tool.get_local_datetime()
         while True:
-            # orderList = []
-            # orderList.append(orderQueue.get())
-            orderId = orderQueue.get()
-            self.sql3.insert(self.userId,orderId)
+            orderList = []
+            orderList.append(orderQueue.get())
+            self.sql3.insert(self.userId,orderList)
     def orderTask(self):
         priceQueue = self.priceQueue
         order_obj = self.order_obj
@@ -146,8 +145,6 @@ class MarketMaker(MarketMakerBasic):
         orderT = self.orderT
         priceQueue = self.priceQueue
         print("XXXXXX:orderTask is alive:", orderT.is_alive())
-        local_datetime = tool.get_local_datetime()
-        print('time is:',local_datetime)
         if orderT.is_alive() == False:
             print(orderT.is_alive())
             os.kill(os.getpid(), signal.SIGKILL)

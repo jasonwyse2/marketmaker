@@ -7,20 +7,7 @@ import gzip
 import random
 from websocket import WebSocketException,WebSocketConnectionClosedException,WebSocketTimeoutException
 
-# sql3 = Sqlite3(dataFile="/mnt/data/bitasset/bitasset.sqlite")
-# sql3 = Sqlite3()
 import os
-
-
-# DEPTH = 15
-# SPREAD = 0.1
-# QUANTITY = 0.001  # ETH/BTC:0.001 BCH/BTC:0.001  LTC/BTC:0.01
-# MAX_RETREAT = 10
-# CONTRACT_ID = '10'  # ETH/BTC:10 BCH/BTC:11  LTC/BTC:12
-# MAX_QUEUE_SIZE = 50
-# SCHEDULE_TIME = 20
-# WEBSOCKET_TIMEOUT = 10
-
 
 class WebSocketBasic:
     # host = "wss://api.huobi.pro/ws"
@@ -278,10 +265,31 @@ class OrderBasic:
         self.executor_cancel = executor_cancel
         self.QUANTITY = QUANTITY
         self.SPREAD = SPREAD
+
         # orderQueue, sell_price_order_dict, dealApi, executor_cancel
         self.sell_q = PriorityQueueSell(orderQueue, sell_price_order_dict, dealApi, executor_cancel,DEPTH,CONTRACT_ID)
         self.buy_q = PriorityQueueBuy(orderQueue, buy_price_order_dict, dealApi, executor_cancel,DEPTH,CONTRACT_ID)
 
+    def add_depth_order(self,contractId, side, price, quantity, orderType):
+        print('DEPTH ADD:', price)
+        quantity = round(5 * quantity * random.randint(1, 10), 6)#AMOUNT_DECIMAL=6
+        result = self.dealApi.trade(contractId, side, price, quantity, orderType)
+        try:
+            dict_data = json.loads(result)
+        except:
+            print('Trade error:', result)
+            return
+        orderId = dict_data['msg']
+        errorCode = dict_data['code']
+        if errorCode == 0:
+            if side == '-1':
+                depth_sell_price_order_dict[price] = orderId
+                depth_sell_q.push(orderId, price)
+            elif side == '1':
+                depth_buy_price_order_dict[price] = orderId
+                depth_buy_q.push(orderId, price)
+            else:
+                print("ERROR side:" + side)
 
     def add_order(self,contractId, side, price, quantity, orderType):
         dealApi = self.dealApi
@@ -423,27 +431,15 @@ class OrderBasic:
         else:
             self.add_order(self.CONTRACT_ID, '1', bid_price, QUANTITY, '1')
 
-
-    # def cancel_all_orders(self):
-    #     CONTRACT_ID = self.CONTRACT_ID
-    #     dealApi = self.dealApi
-    #     executor_cancel = self.executor_cancel
-    #     futures = []
-    #     all_orders = dealApi.get_all_orders(CONTRACT_ID)
-    #     print('orders going to cancel:',all_orders)
-    #     if 'error' not in all_orders:
-    #         if all_orders['code'] == 0:
-    #             print('all_orders:',all_orders['data'])
-    #             for order in all_orders['data'][::-1]:
-    #                 print('cancel order info',order)
-    #                 futures.append(executor_cancel.submit(dealApi.cancel, order['orderId'], CONTRACT_ID))
-    #     print(wait(futures))
-
 class MarketMakerBasic:
-    def __init__(self,CONTRACT_ID,dealApi,executor_cancel):
+    PRICE_DECIMAL = 6
+    AMOUNT_DECIMAL = 3
+    QUANTITY = 0.001
+    def __init__(self,CONTRACT_ID,dealApi,executor_cancel,THICK_DEPTH):
         self.CONTRACT_ID = CONTRACT_ID
         self.dealApi = dealApi
         self.executor_cancel = executor_cancel
+        self.THICK_DEPTH = THICK_DEPTH
 
     def cancel_all_orders(self):
         CONTRACT_ID = self.CONTRACT_ID
@@ -461,6 +457,66 @@ class MarketMakerBasic:
         print(wait(futures))
 
 
+    def adjust_depth_sell_orders(self,ask):
+        DEPTH_SPREAD = self.DEPTH_SPREAD
+        QUANTITY = self.QUANTITY
+        PRICE_DECIMAL = self.PRICE_DECIMAL
+        CONTRACT_ID = self.CONTRACT_ID
+        dealApi = self.dealApi
+        depth_sell_q = self.depth_sell_q
+        depth_sell_price_order_dict = self.depth_sell_price_order_dict
+        if depth_sell_q.empty() == False and ask * (1 + DEPTH_SPREAD / 200) <= depth_sell_q.top():
+            return;
+        ask_price = round(ask * (1 + DEPTH_SPREAD / 100), PRICE_DECIMAL)
+        if depth_sell_q.empty() == False:
+            if ask_price == depth_sell_q.top():
+                print("ASK ENQUL:", ask_price)
+                pass
+            elif ask_price < depth_sell_q.top():
+                add_depth_order(CONTRACT_ID, '-1', ask_price, QUANTITY, '1')
+            else:
+                while depth_sell_q.empty() == False and ask_price > depth_sell_q.top():
+                    print(">>>>DEPTH CANCEL:", depth_sell_q.top())
+                    depth_sell_price_order_dict.pop(depth_sell_q.top())
+                    oldorderId = depth_sell_q.pop()
+                    result = dealApi.cancel(oldorderId, CONTRACT_ID)
+                    # executor_cacel.submit(dealApi.cancel,oldorderId, CONTRACT_ID)
+                if ask_price > depth_sell_q.top():
+                    add_depth_order(CONTRACT_ID, '-1', ask_price, QUANTITY, '1')
+        else:
+            count = 1
+            while count <= THICK_DEPTH:
+                depth_price = round(ask_price * (1 + DEPTH_SPREAD * count / 100), PRICE_DECIMAL)
+                add_depth_order(CONTRACT_ID, '-1', depth_price, QUANTITY, '1')
+                count = count + 1
+
+    def adjust_depth_buy_orders(bid):
+        if depth_buy_q.empty() == False and bid * (1 - DEPTH_SPREAD / 200) >= depth_buy_q.top():
+            return;
+        bid_price = round(bid * (1 - DEPTH_SPREAD / 100), PRICE_DECIMAL)
+        if depth_buy_q.empty() == False:
+            if bid_price == depth_buy_q.top():
+                print("DEPTH BID ENQUL:", bid_price)
+                pass
+            elif bid_price > depth_buy_q.top():
+                add_depth_order(CONTRACT_ID, '1', bid_price, QUANTITY, '1')
+            else:
+                while depth_buy_q.empty() == False and bid_price < depth_buy_q.top():
+                    print(depth_buy_price_order_dict)
+                    depth_buy_price_order_dict.pop(depth_buy_q.top())
+                    oldorderId = depth_buy_q.pop()
+                    result = dealApi.cancel(oldorderId, CONTRACT_ID)
+                    # executor_cacel.submit(dealApi.cancel,oldorderId, CONTRACT_ID)
+                    print(">>>>DEPTH CANCEL:" + result)
+                if bid_price > depth_buy_q.top():
+                    add_depth_order(CONTRACT_ID, '1', bid_price, QUANTITY, '1')
+        else:
+            count = 1
+            while count <= THICK_DEPTH:
+                depth_price = round(bid_price * (1 - DEPTH_SPREAD * count / 100), PRICE_DECIMAL)
+                add_depth_order(CONTRACT_ID, '1', depth_price, QUANTITY, '1')
+                count = count + 1
+
 
 
 
@@ -468,4 +524,5 @@ class MarketMakerBasic:
 
 if __name__ == "__main__":
     host = "wss://api.huobi.pro/ws"  # if okcoin.cn  change url wss://real.okcoin.cn:10440/websocket/okcoinapi
+
 

@@ -1,5 +1,6 @@
 import sqlite3
 from marketmaker.dbOperation.tool import get_local_datetime
+import pandas as pd
 class Sqlite3:
     tableName = 'bitasset_order'
     def __init__(self, dataFile=None):
@@ -58,7 +59,7 @@ class Sqlite3:
         else:
             print("sql is empty or None")
 
-    def insert(self, userId,orderId_list):
+    def insert(self, userId,orderId):
         '''
         insert data to the table
         :param sql:
@@ -68,12 +69,12 @@ class Sqlite3:
         datetime = get_local_datetime()
         sql = 'INSERT INTO ' + self.tableName + '(userId,orderId,datetime) values (?,?,?)'
         if sql is not None and sql != '':
-            if orderId_list is not None:
+            if orderId !='':
                 cu = self.getcursor()
                 try:
-                    for orderId in orderId_list:
-                        cu.execute(sql, [userId,orderId,datetime]) #if 'd' is an element, you should use [d]
-                        self.conn.commit()
+                    # for orderId in orderId_list:
+                    cu.execute(sql, [userId,orderId,datetime]) #if 'd' is an element, you should use [d]
+                    self.conn.commit()
                 except sqlite3.Error as why:
                     print("insert data failed:", why.args[0])
                 cu.close()
@@ -127,7 +128,8 @@ class Sqlite3:
         :return:
         '''
         if sql=='':
-            sql = 'SELECT * FROM ' + self.tableName+ ' order by orderId'
+            # sql = 'SELECT * FROM ' + self.tableName+ ' order by orderId'
+            sql = 'SELECT * FROM ' + self.tableName
         if sql is not None and sql != '':
             cu = self.getcursor()
             content = None
@@ -210,7 +212,7 @@ class Sqlite3:
 
 if __name__ == "__main__":
     # sql3 = Sqlite3(dataFile='/mnt/data/bitasset/bitasset.sqlite')
-    sql3 = Sqlite3(dataFile='/mnt/data/bitasset/bitasset0906.sqlite')
+    sql3 = Sqlite3(dataFile="/mnt/data/bitasset/bitasset.sqlite")
     # userId = 123
     # orderId_list = ['33444','2234']
     # datetime = '3232-23-23 12:34:23'
@@ -218,8 +220,10 @@ if __name__ == "__main__":
 
     res = sql3.fetchall()
     # res = sql3.fetch_specific_num(userId=666849,num=10)
+    df = pd.DataFrame(res)
+    print(df)
     print('fetch number',len(res))
-    print('before delete',res)
+    # print('before delete',res)
     # sql3.delete_orders_by_userIdOrderId(userId=userId, orderId_list=['33444'])
     # res = sql3.fetchall()
     # print('after delete',res)

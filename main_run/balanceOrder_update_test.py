@@ -39,16 +39,16 @@ if __name__ == "__main__":
     for i in range(len(userId_list)):
             userId = userId_list[i]
             dealApi = user_obj.get_dealApi(userId)
-            balanceOps_obj = Mongo.Balance(mongodb_balanceTable, dealApi)
+            balanceOps_obj = Mongo.Balance(mongodb_balanceTable, userId,dealApi)
             balanceOps_obj_list.append(balanceOps_obj)
     # update 'balance' for each userId account (userId is in userId_list),
     for i in range(len(userId_list)):
         sched.add_job(balanceOps_obj_list[i].update, 'interval', seconds=5, start_date='2018-08-13 14:00:00',
-                  end_date='2122-12-13 14:00:10', args=[userId_list[i]])
+                  end_date='2122-12-13 14:00:10')
     # ----------------- update account balance  --------------------------
 
     # ----------------- save order detail  --------------------------
-    sched.add_job(saveOrder, 'interval', seconds=5, start_date='2018-08-13 14:00:00',
+    sched.add_job(saveOrder, 'interval', seconds=13, start_date='2018-08-13 14:00:07',
                   end_date='2118-12-13 14:00:10', args=[userId_list,sql3_obj])
     # ----------------- save order detail  --------------------------
     executor.submit(sched.start)

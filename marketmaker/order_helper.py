@@ -16,6 +16,6 @@ def saveOrder(userId_list,sql3_obj,num_read_from_sql3=300):
             dealApi = user_obj.get_dealApi(userId)
             order_obj = Mongo.Order(mongodb_orderTable, dealApi)
             insert_orderId_list = order_obj.insert(orderId_list)
-            print('insert into mongodb items',len(insert_orderId_list))
+            print('insert into mongodb items',len(insert_orderId_list),'userId:',userId)
             sql3_obj.delete_by_userId_orderIdlist(userId, insert_orderId_list)
     print('------------- save order is over. --------------')

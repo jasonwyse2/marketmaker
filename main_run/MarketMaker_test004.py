@@ -1,5 +1,5 @@
 from marketmaker.MongoOps import Mongo
-from marketmaker.MarketMaker import MarketMaker
+from marketmaker.MarketMaker_0913 import MarketMaker
 from marketmaker.dbOperation.UserInfo_Conf import UserName_UserId_dict
 if __name__ == "__main__":
     listen_host = "wss://api.huobi.pro/ws"  # if okcoin.cn  change url wss://real.okcoin.cn:10440/websocket/okcoinapi
@@ -18,5 +18,7 @@ if __name__ == "__main__":
     dealApi = user_obj.get_dealApi(userId)
     DEPTH = 15
     SPREAD = 0.1
-    mkt_mkr = MarketMaker(listen_host, listenPair_ContractId, userId,sql3_dataFile, dealApi, DEPTH,QUANTITY,SPREAD)
+    THICK_DEPTH = 15
+    mkt_mkr = MarketMaker(listen_host, listenPair_ContractId, userId,sql3_dataFile,
+                          dealApi, DEPTH,QUANTITY,SPREAD,THICK_DEPTH)
     mkt_mkr.run()

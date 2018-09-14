@@ -95,12 +95,13 @@ class MarketMaker(MarketMakerBasic):
     sell_price_order_dict = Manager().dict()
     executor_cancel = ThreadPoolExecutor(100)
 
-    def __init__(self,host,CONTRACT_ID, userId,sql3_dataFile, dealApi,DEPTH,QUANTITY,SPREAD):
+    def __init__(self,host,CONTRACT_ID, userId,sql3_dataFile, dealApi,DEPTH,QUANTITY,SPREAD,THICK_DEPTH):
         executor_cancel = self.executor_cancel
         self.sql3 = Sqlite3(dataFile=sql3_dataFile)
         self.userId = userId
         self.QUANTITY = QUANTITY
-        super(MarketMaker, self).__init__(CONTRACT_ID,dealApi,executor_cancel)
+        self.THICK_DEPTH = THICK_DEPTH
+        super(MarketMaker, self).__init__(CONTRACT_ID,dealApi,executor_cancel,THICK_DEPTH)
 
         self.order_obj = Order(self.orderQueue, self.sell_price_order_dict, self.buy_price_order_dict,
                                     self.sql3, CONTRACT_ID, userId,dealApi, executor_cancel,DEPTH,QUANTITY,SPREAD)
@@ -117,10 +118,9 @@ class MarketMaker(MarketMakerBasic):
         orderQueue = self.orderQueue
         local_datetime = tool.get_local_datetime()
         while True:
-            # orderList = []
-            # orderList.append(orderQueue.get())
-            orderId = orderQueue.get()
-            self.sql3.insert(self.userId,orderId)
+            orderList = []
+            orderList.append(orderQueue.get())
+            self.sql3.insert(self.userId,orderList)
     def orderTask(self):
         priceQueue = self.priceQueue
         order_obj = self.order_obj
@@ -146,8 +146,6 @@ class MarketMaker(MarketMakerBasic):
         orderT = self.orderT
         priceQueue = self.priceQueue
         print("XXXXXX:orderTask is alive:", orderT.is_alive())
-        local_datetime = tool.get_local_datetime()
-        print('time is:',local_datetime)
         if orderT.is_alive() == False:
             print(orderT.is_alive())
             os.kill(os.getpid(), signal.SIGKILL)
@@ -166,6 +164,16 @@ class MarketMaker(MarketMakerBasic):
 
     def run(self):
 
+        self.sell_q = PriorityQueueSell(DEPTH)
+        self.buy_q = PriorityQueueBuy(DEPTH)
+        self.buy_price_order_dict = {}
+        self.sell_price_order_dict = {}
+
+        self.depth_sell_q = PriorityQueueSell(self.THICK_DEPTH, True)
+        self.depth_buy_q = PriorityQueueBuy(self.THICK_DEPTH, True)
+        self.depth_buy_price_order_dict = {}
+        self.depth_sell_price_order_dict = {}
+
         print("ALL orders canceled at the very beginning of the program!")
         pwdb = Process(target=self.writeOrderIdtoDBTask)
         orderT = Process(target=self.orderTask)
@@ -178,6 +186,22 @@ class MarketMaker(MarketMakerBasic):
         websock_obj = self.websock_obj
         self.executor_cancel.submit(self.oderTask_listener_schedule)
         websock_obj.start_websocket_connect()
+        pwdb.join()
+        orderT.join()
+
+
+
+        orderQueue = Queue(100)
+        priceQueue = Queue()
+
+        pwdb = Process(target=writeOrderIdtoDBTask)
+        orderT = Process(target=orderTask)
+        pwdb.start()
+        orderT.start()
+
+        websocket.enableTrace(False)
+        websocket.setdefaulttimeout(WEBSOCKET_TIMEOUT)
+        start_websocket_connect()
         pwdb.join()
         orderT.join()
 

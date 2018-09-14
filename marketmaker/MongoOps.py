@@ -31,9 +31,9 @@ class Mongo:
         def __init__(self,mongodb_userTable):
             self.mongodb_userTable = mongodb_userTable
 
-        def update(self, userId, APIKEY, APISECRET):
+        def update(self, userId, APIKEY, SECRETKEY, RESTURL):
             query = {'userId': userId}
-            values = {'$set': {'APIKEY': APIKEY, 'SECRETKEY': APISECRET}}
+            values = {'$set': {'APIKEY': APIKEY, 'SECRETKEY': SECRETKEY, 'RESTURL':RESTURL}}
             self.mongodb_userTable.update(query, values)
             print('update user info (userName:%s) successfully' % (userId))
 
@@ -58,12 +58,14 @@ class Mongo:
             return dealApi
 
     class Balance:
-        def __init__(self,mongodb_balanceTable, dealApi):
+        def __init__(self,mongodb_balanceTable, userId, dealApi):
             self.mongodb_balanceTable = mongodb_balanceTable
+            self.userId = userId
             self.dealApi = dealApi
 
-        def update(self, userId):
+        def update(self):
             balance_info = self.dealApi.accounts_balance()
+            userId = self.userId
             print(balance_info)
             if (balance_info['code'] == 0):
                 # print('get balance successfully from remote website server for user:%s'%UserId_UserName_dict[userId])
@@ -77,7 +79,7 @@ class Mongo:
                 newBTCValue = df_newBTCBalance.loc[df_newBTCBalance['currency'] == 'BTC', 'balance'].values[0]
 
 
-                doc_lastRecord = self.find(userId,record_num=1)
+                doc_lastRecord = self.find(record_num=1)
                 last_account = ''
                 for doc in doc_lastRecord:
                     last_account = doc['account']
@@ -95,10 +97,49 @@ class Mongo:
             else:
                 print('get balance from remote server go wrong:',balance_info)
 
-        def find(self,userId,record_num):
-            query = {'userId': userId}  # db.foo.find().sort({_id:1}).limit(50);
+        def find(self,record_num):
+            query = {'userId': self.userId}  # db.foo.find().sort({_id:1}).limit(50);
             docs = self.mongodb_balanceTable.find(query).sort('_id', -1).limit(record_num)
             # print(list(docs))
+            return docs
+
+        def diff(self,minutes_ago):
+            docs = self.find(1)
+            for doc in docs:
+                balancdInfo_new_dict = doc
+                break
+            account_new_list = balancdInfo_new_dict['account']
+            account_new_datetime = balancdInfo_new_dict['datetime']
+            balance_BTC_new = 0.
+            for i in range(len(account_new_list)):
+                account_new = account_new_list[i]
+                if (account_new['currency'] == 'BTC'):
+                    balance_BTC_new = account_new['balance']
+
+            timestamp_old = get_timestamp10_minutes_ago(num=minutes_ago)
+            local_date_str = from_timestamp10_to_localtime(timestamp_old, format_str='%Y-%m-%d')
+            lastDay_datetime = local_date_str + ' 00:00:00'
+            docs = self.find_by_datetime(lastDay_datetime)
+            for doc in docs:
+                balancdInfo_old_dict = doc
+                break
+            account_old_list = balancdInfo_old_dict['account']
+            account_old_datetime = balancdInfo_new_dict['datetime']
+            balance_BTC_old = 0.
+            for i in range(len(account_old_list)):
+                account_old = account_old_list[i]
+                if(account_old['currency']=='BTC'):
+                    balance_BTC_old = account_old['balance']
+            return balance_BTC_new,balance_BTC_old,account_new_datetime,account_old_datetime
+
+
+        def find_by_datetime(self,datetime,backword=-1):
+            if backword==-1:
+                query  = {'userId': self.userId,'datetime':{'$lt':datetime}}
+                docs = self.mongodb_balanceTable.find(query).sort('datetime',-1).limit(1)
+            elif backword==1:
+                query = {'userId': self.userId, 'datetime': {'$gte': datetime}}
+                docs = self.mongodb_balanceTable.find(query).sort('datetime', 1).limit(1)
             return docs
 
         def delete(self, userId):
@@ -118,6 +159,7 @@ class Mongo:
                     code = orders_info['code']
                     if code == 0:
                         data = orders_info['data']
+
                         orderInfo_df = pd.DataFrame(data)
                         # select the done order out, 2:full ,3:cancel
                         full_code = StatusName_StatusCode_dict['full']
@@ -125,15 +167,12 @@ class Mongo:
                         order_full_df = orderInfo_df[orderInfo_df['status'] == full_code]
 
                         order_cancel_df =  orderInfo_df[(orderInfo_df['status'] == cancel_code)]
-                        order_partCancel_df = order_cancel_df.loc[(orderInfo_df['filledQuantity'].values>0) & (orderInfo_df['canceledQuantity'].values>0)]
-                        order_partCancel_df['status'] = StatusName_StatusCode_dict['part-cancel']
-
+                        # order_partCancel_df = order_cancel_df.loc[(order_cancel_df['filledQuantity'].values>0) & (order_cancel_df['canceledQuantity'].values>0)]
+                        # order_partCancel_df['status'] = StatusName_StatusCode_dict['part-cancel']
 
                         order_cancel_df = order_cancel_df.copy()
                         order_cancel_df.loc[(orderInfo_df['filledQuantity'] > 0) & (orderInfo_df['canceledQuantity'] > 0),'status']\
                             =StatusName_StatusCode_dict['part-cancel']
-
-
                         order_done_df = pd.concat([order_full_df,order_cancel_df])
                         order_done_df.reset_index(inplace=True)
                         done_order_list = order_done_df.to_dict(orient='records')
@@ -238,41 +277,19 @@ if __name__ == "__main__":
     user_obj = Mongo.User(mongo_userTable)
     # userOps_obj.insert(userId = 123, userName='maker_lj1', APIKEY='aka9a8c9efdaeb44b3',
     #                    APISECRET='db4d3d557d554910b7ba6b1d6a9db9a9',RESTURL='http://api.bitasset.com/')
-    executor = ThreadPoolExecutor(20)
-    # update balance table for userId (dealApi)
-
-    # update exchange, including receiving data and store it in mongo
-    price_dict = {}
-    # ----  receiving data
-    websock_obj = WebSocket(listen_host, price_dict)
-    executor.submit(websock_obj.start_websocket_connect)
-    # ----  store data in mongo
-    sched = BlockingScheduler()
-    mongodb_exchangeTable = dbOps_obj.get_mongodb_table(mongodb_name, mongodb_exchangeTable_name)
-
-    exchange_obj = Mongo.Exchange(listen_exchangeName,mongodb_exchangeTable)
-
-    mongodb_balanceTable = dbOps_obj.get_mongodb_table(mongodb_name, mongodb_balanceTable_name)
+    userInfo_list = [
+    {'userId': 123, 'userName': 'maker_lj1@bitasset.com', 'APIKEY': 'aka9a8c9efdaeb44b3',
+     'SECRETKEY': 'db4d3d557d554910b7ba6b1d6a9db9a9', 'RESTURL': 'http://47.91.212.237'},
+    {'userId': 124, 'userName': 'maker_lj2@bitasset.com', 'APIKEY': 'akd306f75e181c42c6',
+     'SECRETKEY': '61a68a3109aa4174bc06c2a1f631569b', 'RESTURL': 'http://47.91.212.237'},
+    {'userId': 125, 'userName': 'maker_lj3@bitasset.com', 'APIKEY': 'ak7aae03c570844966',
+     'SECRETKEY': 'f8890fee0b3a451da1f58dcd02cabcc3', 'RESTURL': 'http://47.91.212.237'},
+    ]
+    userInfo = userInfo_list[0]
+    user_obj.update(userId=userInfo['userId'],APIKEY=userInfo['APIKEY'],
+                    SECRETKEY=userInfo['SECRETKEY'],RESTURL=userInfo['RESTURL'])
 
 
-    userId_list = [UserName_UserId_dict['maker_lj1'],
-                   UserName_UserId_dict['maker_lj2'],
-                   UserName_UserId_dict['maker_lj3']
-                   ]
-    balanceOps_obj_list = []
-    for i in range(len(userId_list)):
-        userId = userId_list[i]
-        dealApi = user_obj.get_dealApi(userId)
-        balanceOps_obj = Mongo.Balance(mongodb_balanceTable, dealApi)
-        balanceOps_obj_list.append(balanceOps_obj)
-    # 'exchange rate' update in every seconds
-    sched.add_job(exchange_obj.update, 'interval', seconds=5, start_date='2018-08-13 14:00:00',
-                  end_date='2122-12-13 14:00:10',args=[price_dict])
-    # update 'balance' for each userId account,
-    for i in range(len(userId_list)):
-        sched.add_job(balanceOps_obj_list[i].update, 'interval', seconds=5, start_date='2018-08-13 14:00:00',
-                  end_date='2122-12-13 14:00:10', args=[userId_list[i]])
-    executor.submit(sched.start)
-    print('main process end')
+
 
 
