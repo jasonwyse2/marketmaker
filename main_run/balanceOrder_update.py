@@ -50,7 +50,7 @@ if __name__ == "__main__":
 
     # ----------------- save order detail  --------------------------
     # saveOrder(userId_list,sql3_obj)
-    sched.add_job(saveOrder, 'interval', seconds=11, start_date='2018-08-13 14:00:07',
+    sched.add_job(saveOrder, 'interval', seconds=14, start_date='2018-08-13 14:00:17',
                   end_date='2118-12-13 14:00:10', args=[userId_list,sql3_obj])
     # ----------------- save order detail  --------------------------
     executor.submit(sched.start)

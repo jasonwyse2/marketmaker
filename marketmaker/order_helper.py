@@ -1,7 +1,7 @@
 
 from marketmaker.MongoOps import Mongo
 import pandas as pd
-def saveOrder(userId_list,sql3_obj,num_read_from_sql3=300):
+def saveOrder(userId_list,sql3_obj,num_read_from_sql3=800):
 
     mongo_obj = Mongo()
     mongodb_userTable = mongo_obj.get_mongodb_table(mongodb_name='bitasset', mongoTable_name='user')
