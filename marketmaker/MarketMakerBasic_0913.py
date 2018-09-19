@@ -311,44 +311,50 @@ class OrderBasic:
                 print("ERROR side:" + side)
 
     def trade_helper(self,price, quantity):
-        print('quantity',quantity)
         CONTRACT_ID = self.CONTRACT_ID
         dealApi = self.dealApi
-        quantity = quantity * random.randint(1, 100)
-
         side = {'buy': '1', 'sell': '-1'}
+        AMOUNT_DECIMAL = 3
+        quantity = round(quantity * random.randint(50, 150), AMOUNT_DECIMAL)
         result1 = dealApi.trade(CONTRACT_ID, side['buy'], price, quantity, '1')
-        data1_dict = json.loads(result1)
-        print('result1',result1)
-        data2_dict = {'code':-1}
-        if data1_dict['code'] == 0:
-            orderid1 = data1_dict['msg']
-            self.orderQueue.put(data1_dict['msg'])
+        try:
+            dict_data = json.loads(result1)
+        except ValueError:
+            print('JSON ERROR:', result1)
+            return
+        orderid1 = ''
+        orderid2 = ''
+        if dict_data['code'] == 0:
+            orderid1 = dict_data['msg']
+            self.orderQueue.put(orderid1)
             result2 = dealApi.trade(CONTRACT_ID, side['sell'], price, quantity, '1')
-            data2_dict = json.loads(result2)
-            print('result2',result2)
-            orderid2 = data2_dict['msg']
-            if data2_dict['code'] != 0:
-                res = dealApi.cancel(data2_dict['msg'], CONTRACT_ID)
-                print('order2 cancel', res)
+            try:
+                dict_data = json.loads(result2)
+            except ValueError:
+                dealApi.cancel(orderid1, CONTRACT_ID)
+                print('JSON ERROR', result2)
+                return
+            if dict_data['code'] == 0:
+                orderid2 = dict_data['msg']
+                self.orderQueue.put(orderid2)
             else:
-                self.orderQueue.put(data2_dict['msg'])
-                pass
-        # else:
-        #     dealApi.cancel(orderid1, CONTRACT_ID)
-        time.sleep(1)
-        if data1_dict['code'] == 0:
-            res = dealApi.cancel(orderid1, CONTRACT_ID)
-            print('order1 cancel, result status:',res)
-        if data2_dict['code'] == 0:
-            res = dealApi.cancel(orderid2, CONTRACT_ID)
-            print('order2 cancel, result status:', res)
+                dealApi.cancel(orderid1, CONTRACT_ID)
+                print('Trade Error2:', result2, price, quantity)
+        else:
+            print('Trade Error1:', result1, price, quantity)
+        if orderid1 != '':
+            dealApi.cancel(orderid1, CONTRACT_ID)
+        if orderid2 != '':
+            dealApi.cancel(orderid2, CONTRACT_ID)
+
 
     def self_trade(self,bid, ask, quantity):
         ts = time.time() * 1000
         ts_minute = int(ts / 1000 / 60) * 1000 * 60
-
-        price = round((bid + ask) / 2., 6)
+        SPREAD = 0.1
+        PRICE_DECIMAL = 6
+        price = round((bid * (1 - SPREAD / 100) + ask * (1 + SPREAD / 100)) / 2., PRICE_DECIMAL)
+        # price = round((bid + ask) / 2., 6)
 
         self.latest_price = price
         if self.last_integer_minute != ts_minute:
@@ -435,12 +441,16 @@ class MarketMakerBasic:
     PRICE_DECIMAL = 6
     AMOUNT_DECIMAL = 3
     QUANTITY = 0.001
+    def __init1__(self,CONTRACT_ID,dealApi,executor_cancel,THICK_DEPTH):
+        self.CONTRACT_ID = CONTRACT_ID
+        self.dealApi = dealApi
+        self.executor_cancel = executor_cancel
+        self.THICK_DEPTH = THICK_DEPTH
     def __init__(self,CONTRACT_ID,dealApi,executor_cancel,THICK_DEPTH):
         self.CONTRACT_ID = CONTRACT_ID
         self.dealApi = dealApi
         self.executor_cancel = executor_cancel
         self.THICK_DEPTH = THICK_DEPTH
-
     def cancel_all_orders(self):
         CONTRACT_ID = self.CONTRACT_ID
         dealApi = self.dealApi
@@ -518,11 +528,11 @@ class MarketMakerBasic:
                 count = count + 1
 
 
-
-
-
-
 if __name__ == "__main__":
+    import configparser
+    config = configparser.ConfigParser()
+    secs = config.sections()
+    print(secs)
     host = "wss://api.huobi.pro/ws"  # if okcoin.cn  change url wss://real.okcoin.cn:10440/websocket/okcoinapi
 
 

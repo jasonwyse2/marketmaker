@@ -1,6 +1,6 @@
 from marketmaker.MongoOps import Mongo
 from marketmaker.MarketMaker import MarketMaker
-from marketmaker.dbOperation.UserInfo_Conf import UserName_UserId_dict
+from marketmaker.UserInfo_Conf import UserName_UserId_dict
 if __name__ == "__main__":
     listen_host = "wss://api.huobi.pro/ws"  # if okcoin.cn  change url wss://real.okcoin.cn:10440/websocket/okcoinapi
     listenPair_ContractId = '10' #CONTRACT_ID_dict = {'ETH/BTC':'10','BCH/BTC':'11','LTC/BTC':'12'}

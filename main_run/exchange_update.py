@@ -24,7 +24,7 @@ if __name__ == "__main__":
     sched = BlockingScheduler() #timer
     # ----------------- update exchange rate --------------------------
     exchange_obj = Mongo.Exchange(listen_exchangeName, mongodb_exchangeTable)
-    sched.add_job(exchange_obj.update, 'interval', seconds=5, start_date='2018-08-13 14:00:03',
+    sched.add_job(exchange_obj.update, 'interval', seconds=10, start_date='2018-08-13 14:00:07',
                   end_date='2122-12-13 14:00:10', args=[exchangeRate_dict])
     # ----------------- update exchange rate --------------------------
     executor.submit(sched.start)

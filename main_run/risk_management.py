@@ -3,15 +3,10 @@ import os
 curPath = os.path.abspath(os.path.dirname(__file__))
 rootPath = os.path.split(curPath)[0]
 sys.path.append(rootPath)
-from marketmaker.dbOperation.Sqlite3 import Sqlite3
+from marketmaker.UserInfo_Conf import UserName_UserId_dict
 from concurrent.futures import ThreadPoolExecutor
-from marketmaker.dbOperation.UserInfo_Conf import UserName_UserId_dict, UserId_UserName_dict,StatusName_StatusCode_dict
-from concurrent.futures import ThreadPoolExecutor, wait, as_completed
 from apscheduler.schedulers.blocking import BlockingScheduler
 from marketmaker.MongoOps import Mongo
-from marketmaker.dbOperation.tool import get_local_datetime
-from marketmaker.order_helper import saveOrder
-from marketmaker.market_maker_yu_0913 import cancel_all_orders
 import time
 from email.header import Header
 from email.mime.text import MIMEText

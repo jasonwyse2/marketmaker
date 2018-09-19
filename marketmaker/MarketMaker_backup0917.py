@@ -1,7 +1,7 @@
 from marketmaker.MarketMakerBasic import MarketMakerBasic,WebSocketBasic,OrderBasic,PriorityQueueBuy,PriorityQueueSell
 from multiprocessing import Process, Queue, Manager
 from concurrent.futures import ThreadPoolExecutor, wait
-from marketmaker.dbOperation.Sqlite3 import Sqlite3
+from marketmaker.Sqlite3 import Sqlite3
 import gzip,json
 from datetime import datetime
 import websocket
@@ -11,8 +11,8 @@ from marketmaker.const import *
 from apscheduler.schedulers.blocking import BlockingScheduler
 import signal
 from marketmaker.MongoOps import Mongo
-from marketmaker.dbOperation.UserInfo_Conf import UserName_UserId_dict
-from marketmaker.dbOperation import tool
+from marketmaker.UserInfo_Conf import UserName_UserId_dict
+from marketmaker import tool
 
 
 class WebSocket(WebSocketBasic):

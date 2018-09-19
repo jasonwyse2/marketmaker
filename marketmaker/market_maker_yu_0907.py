@@ -1,21 +1,17 @@
 import websocket
 import time
-import sys
 import json
-import hashlib
-import zlib
-from concurrent.futures import ThreadPoolExecutor, wait, as_completed
+from concurrent.futures import ThreadPoolExecutor, wait
 import heapq
 import gzip
 import random
-from marketmaker.BitAssetAPI import BitAssetMarketAPI, BitAssetDealsAPI
-from multiprocessing import Process, Queue, Manager
-from marketmaker.dbOperation.Sqlite3 import Sqlite3
+from marketmaker.BitAssetAPI import BitAssetDealsAPI
+from multiprocessing import Process, Queue
+from marketmaker.Sqlite3 import Sqlite3
 from apscheduler.schedulers.blocking import BlockingScheduler
 from websocket import WebSocketException,WebSocketConnectionClosedException,WebSocketTimeoutException
 import signal
 import datetime
-import sys
 import os
 
 '''

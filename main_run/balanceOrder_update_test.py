@@ -3,9 +3,9 @@ import os
 curPath = os.path.abspath(os.path.dirname(__file__))
 rootPath = os.path.split(curPath)[0]
 sys.path.append(rootPath)
-from marketmaker.dbOperation.Sqlite3 import Sqlite3
+from marketmaker.Sqlite3 import Sqlite3
 from concurrent.futures import ThreadPoolExecutor
-from marketmaker.dbOperation.UserInfo_Conf import UserName_UserId_dict, UserId_UserName_dict,StatusName_StatusCode_dict
+from marketmaker.UserInfo_Conf import UserName_UserId_dict
 from apscheduler.schedulers.blocking import BlockingScheduler
 from marketmaker.MongoOps import Mongo
 from marketmaker.order_helper import saveOrder

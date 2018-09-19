@@ -1,29 +1,27 @@
-import sys
-import os
-curPath = os.path.abspath(os.path.dirname(__file__))
-rootPath = os.path.split(curPath)[0]
-sys.path.append(rootPath)
 import websocket
 import time
+import sys
 import json
-from concurrent.futures import ThreadPoolExecutor, wait
+import hashlib
+import zlib
+from concurrent.futures import ThreadPoolExecutor, wait, as_completed
 import heapq
 import gzip
 import random
-from marketmaker.BitAssetAPI import BitAssetDealsAPI
-from multiprocessing import Process, Queue
+from marketmaker.BitAssetAPI import BitAssetMarketAPI, BitAssetDealsAPI
+from multiprocessing import Process, Queue, Manager
 from marketmaker.Sqlite3 import Sqlite3
 from apscheduler.schedulers.blocking import BlockingScheduler
-from websocket import WebSocketException,WebSocketConnectionClosedException,WebSocketTimeoutException
-from marketmaker.UserInfo_Conf import UserName_UserId_dict
 import signal
 import datetime
+import sys
 import os
+from websocket import WebSocketException,WebSocketConnectionClosedException,WebSocketTimeoutException
 
 '''
 Paras Need to Change!
 '''
-SQLITE3_FILE = "/mnt/data/bitasset/bitasset0906.sqlite"
+SQLITE3_FILE = "/mnt/data/bitasset/bitasset.sqlite"
 DEPTH = 5
 THICK_DEPTH = 15
 SPREAD = 0.1
@@ -40,17 +38,14 @@ WEBSOCKET_TIMEOUT = 10
 ###APIKEY = 'ak7aae03c570844966'
 ###SECRETKEY = 'f8890fee0b3a451da1f58dcd02cabcc3'
 # username:maker_lj1@bitasset.com
-#test004:   'akfb93b97cffef4c0b','SECRETKEY': 'affc4258411e4439bdb6142e0e27fbe1'
-# test005: 'ak4703b894b34d4873','SECRETKEY': 'c8116d48f0c941efae4dd19b4bd95f20'
-# test006: 'aka7d579788d384c60','SECRETKEY': '8f7aae7545574dc1846c0a10d76dc0bc'
-APIKEY = 'akfb93b97cffef4c0b'
-SECRETKEY = 'affc4258411e4439bdb6142e0e27fbe1'
-USERID=UserName_UserId_dict['test004']
+APIKEY = 'aka9a8c9efdaeb44b3'
+SECRETKEY = 'db4d3d557d554910b7ba6b1d6a9db9a9'
+USERID = '123'
 ###username:1381110955
 ###APIKEY = 'ak7b68c889d04045e5'
 ###SECRETKEY = 'b44f7c6a6ef44d9c84d7b4da2e02c8a1'
 ###RESTURL = 'http://api.bitasset.com'
-RESTURL = 'http://tapi.bitasset.cc:7005/'
+RESTURL = 'http://47.91.212.237'
 # APIKEY='ak178f82404a714188'
 # SECRETKEY='1ce9a832919d403a839ff4293cea10d8'
 # RESTURL = 'http://tapi.bitasset.cc:7005/'
@@ -139,7 +134,7 @@ def cancel_all_orders():
     dict_orders = {}
     all_orders = dealApi.get_all_orders(CONTRACT_ID)
     try:
-        dict_orders = (all_orders)
+        dict_orders = json.loads(all_orders)
     except ValueError:
         print('Get All Orders Error:', all_orders)
         return

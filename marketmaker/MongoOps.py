@@ -7,15 +7,12 @@ sys.path.append(rootPath)
 from marketmaker.BitAssetAPI import BitAssetDealsAPI
 
 import json
-from marketmaker.dbOperation.tool import *
+from marketmaker.tool import *
 from pymongo import MongoClient
 import pandas as pd
 from marketmaker.MarketMakerBasic import WebSocketBasic
-from concurrent.futures import ThreadPoolExecutor
 import gzip
-from marketmaker.dbOperation.UserInfo_Conf import UserName_UserId_dict, UserId_UserName_dict,StatusName_StatusCode_dict
-from apscheduler.schedulers.blocking import BlockingScheduler
-
+from marketmaker.UserInfo_Conf import UserId_UserName_dict,StatusName_StatusCode_dict
 
 class Mongo:
     conn = MongoClient("mongodb://localhost:27017/")
@@ -167,8 +164,6 @@ class Mongo:
                         order_full_df = orderInfo_df[orderInfo_df['status'] == full_code]
 
                         order_cancel_df =  orderInfo_df[(orderInfo_df['status'] == cancel_code)]
-                        # order_partCancel_df = order_cancel_df.loc[(order_cancel_df['filledQuantity'].values>0) & (order_cancel_df['canceledQuantity'].values>0)]
-                        # order_partCancel_df['status'] = StatusName_StatusCode_dict['part-cancel']
 
                         order_cancel_df = order_cancel_df.copy()
                         order_cancel_df.loc[(orderInfo_df['filledQuantity'] > 0) & (orderInfo_df['canceledQuantity'] > 0),'status']\
@@ -184,26 +179,9 @@ class Mongo:
             insert_orderId_list = order_done_df['uuid'].values.tolist()
             return insert_orderId_list
 
-        def saveOrder(self,mongo_obj,sql3_obj,userId_list):
-
-            mongodb_userTable = mongo_obj.get_mongodb_table(mongodb_name='bitasset', mongoTable_name='user')
-            mongodb_orderTable = mongo_obj.get_mongodb_table(mongodb_name='bitasset', mongoTable_name='order')
-            num_read_from_sql3 = 300
-            for i in range(len(userId_list)):
-                userId = userId_list[i]
-                orderId_list0 = sql3_obj.fetch_specific_num(userId, num=num_read_from_sql3)
-                if orderId_list0:
-                    orderId_list = pd.DataFrame(orderId_list0).iloc[:, 0].values.tolist()
-                    user_obj = Mongo.User(mongodb_userTable)
-                    dealApi = user_obj.get_dealApi(userId)
-                    order_obj = Mongo.Order(mongodb_orderTable, dealApi)
-                    insert_orderId_list = order_obj.insert(orderId_list)
-                    print('insert into mongodb items', len(insert_orderId_list))
-                    sql3_obj.delete_by_userId_orderIdlist(userId, insert_orderId_list)
-            print('------------- save order is over. --------------')
-
         def find(self,num):
             pass
+
     class Exchange():
         def __init__(self,exchangeName,mongodb_exchangeTable):
             self.mongodb_exchangeTable = mongodb_exchangeTable

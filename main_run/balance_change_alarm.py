@@ -3,15 +3,11 @@ import os
 curPath = os.path.abspath(os.path.dirname(__file__))
 rootPath = os.path.split(curPath)[0]
 sys.path.append(rootPath)
-from marketmaker.dbOperation.Sqlite3 import Sqlite3
+from marketmaker.UserInfo_Conf import UserName_UserId_dict, UserId_UserName_dict
 from concurrent.futures import ThreadPoolExecutor
-from marketmaker.dbOperation.UserInfo_Conf import UserName_UserId_dict, UserId_UserName_dict,StatusName_StatusCode_dict
-from concurrent.futures import ThreadPoolExecutor, wait, as_completed
 from apscheduler.schedulers.blocking import BlockingScheduler
 from marketmaker.MongoOps import Mongo
-from marketmaker.dbOperation.tool import get_local_datetime
-from marketmaker.order_helper import saveOrder
-import time
+from marketmaker.tool import get_local_datetime
 from email.header import Header
 from email.mime.text import MIMEText
 import smtplib
@@ -82,10 +78,18 @@ def balance_change_alarm(balance_obj_list, idx):
     balance_BTC_old_list[idx] = balance_BTC_new_list[idx]
     account_old_datetime_list[idx] = account_new_datetime_list[idx]
 
+def checkAllAcount():
+    for i in range(len(userId_list)):
+        userId = userId_list[i]
+        dealApi = user_obj.get_dealApi(userId)
+        balance_obj = Mongo.Balance(mongodb_balanceTable, userId, dealApi)
+        balance_obj_list.append(balance_obj)
+        balance_change_alarm(balance_obj_list, i)
+    print()
 
 
 if __name__ == "__main__":
-    executor = ThreadPoolExecutor(50)
+    executor = ThreadPoolExecutor(10)
     mongodb_name = 'bitasset'
     mongodb_orderTable_name = 'order'
     mongodb_balanceTable_name = 'balance'
@@ -102,13 +106,11 @@ if __name__ == "__main__":
 
     # ----------------- update account balance  --------------------------
     user_obj = Mongo.User(mongodb_userTable)
-    while True:
-        for i in range(len(userId_list)):
-            userId = userId_list[i]
-            dealApi = user_obj.get_dealApi(userId)
-            balance_obj = Mongo.Balance(mongodb_balanceTable, userId, dealApi)
-            balance_obj_list.append(balance_obj)
-            balance_change_alarm(balance_obj_list, i)
-        print()
-        time.sleep(5)
+
+    sched.add_job(checkAllAcount, 'interval', seconds=5, start_date='2018-08-13 14:00:00',
+                  end_date='2118-12-13 14:00:10')
+    # ----------------- save order detail  --------------------------
+    executor.submit(sched.start)
+
+
 

@@ -3,8 +3,8 @@ import os
 curPath = os.path.abspath(os.path.dirname(__file__))
 rootPath = os.path.split(curPath)[0]
 sys.path.append(rootPath)
-from marketmaker.dbOperation.UserInfo_Conf import *
-from concurrent.futures import ThreadPoolExecutor, wait, as_completed
+from marketmaker.UserInfo_Conf import *
+from concurrent.futures import ThreadPoolExecutor
 from apscheduler.schedulers.blocking import BlockingScheduler
 from marketmaker.MongoOps import Mongo
 import time
@@ -78,14 +78,6 @@ def check_balance_safety(balance_obj, threthold=0.2):
         print('balance_BTC_new:',balance_BTC_new,'balance_BTC_old:',balance_BTC_old)
 
     print('checking balance is over for user:',userName,'the BTC balance changes:%s %%'%str(change))
-
-
-# def check_balance_concurrence(balance_obj_list):
-#     futures = []
-#     for i in range(len(balance_obj_list)):
-#         balance_obj = balance_obj_list[i]
-#         futures.append(executor.submit(check_balance2,balance_obj))
-#     wait(futures)
 
 userId_list = [UserName_UserId_dict['test004'],
                    UserName_UserId_dict['test005'],
